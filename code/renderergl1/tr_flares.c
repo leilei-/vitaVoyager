@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_flares.c
 
 #include "tr_local.h"
+#include "../qcommon/cm_local.h"
 
 /*
 =============================================================================
@@ -272,7 +273,61 @@ FLARE BACK END
 RB_TestFlare
 ==================
 */
+
+
+void CM_Trace( trace_t *results, const vec3_t start, const vec3_t end, vec3_t mins, vec3_t maxs,
+               clipHandle_t model, const vec3_t origin, int brushmask, int capsule, sphere_t *sphere );
+
+
 void RB_TestFlare( flare_t *f ) {
+	// leilei - this is not accurate (needs depth reading and isn't good behind transparent surfaces), but CM_Trace'd flares are better than nothing.
+	qboolean		visible;
+	float			fade;
+
+	backEnd.pc.c_flareTests++;
+
+
+	// doing a readpixels is as good as doing a glFinish(), so
+	// don't bother with another sync
+	glState.finishCalled = qfalse;
+
+	// read from a traceline
+	trace_t  yeah;
+	CM_Trace( &yeah, f->origin, backEnd.or.viewOrigin, NULL, NULL, 0, f->origin, 1, 0, NULL );
+	if (yeah.fraction < 1) {
+		visible = 0;
+		return;
+	}
+	else {
+		visible = 1;
+	}
+
+	if ( visible ) {
+		if ( !f->visible ) {
+			f->visible = qtrue;
+			f->fadeTime = backEnd.refdef.time - 1;
+
+		}
+		{
+			fade = ( ( backEnd.refdef.time - f->fadeTime ) / 1000.0f ) * r_flareFade->value;
+		}
+	}
+	else {
+		if ( f->visible ) {
+			f->visible = qfalse;
+			f->fadeTime = backEnd.refdef.time - 1;
+		}
+		fade = 1.0f - ( ( backEnd.refdef.time - f->fadeTime ) / 1000.0f ) * r_flareFade->value;
+	}
+
+	if ( fade < 0 ) {
+		fade = 0;
+	}
+	if ( fade > 1 ) {
+		fade = 1;
+	}
+
+	f->drawIntensity = fade;
 
 }
 
@@ -298,7 +353,8 @@ void RB_RenderFlare( flare_t *f ) {
 		distance = -f->eyeZ;
 
 	// calculate the flare size..
-	size = backEnd.viewParms.viewportWidth * ( r_flareSize->value/640.0f + 8 / distance );
+	//size = backEnd.viewParms.viewportWidth * ( r_flareSize->value/640.0f + 8 / distance );
+	
 
 /*
  * This is an alternative to intensity scaling. It changes the size of the flare on screen instead
@@ -306,6 +362,10 @@ void RB_RenderFlare( flare_t *f ) {
 	// size will change ~ 1/r.
 	size = backEnd.viewParms.viewportWidth * (r_flareSize->value / (distance * -2.0f));
 */
+
+//	leilei - Elite Force used the alternative method
+	size = backEnd.viewParms.viewportHeight * (r_flareSize->value / (distance * -2.0f));
+
 
 /*
  * As flare sizes stay nearly constant with increasing distance we must decrease the intensity
@@ -324,6 +384,9 @@ void RB_RenderFlare( flare_t *f ) {
 	factor = distance + size * sqrt(flareCoeff);
 	
 	intensity = flareCoeff * size * size / (factor * factor);
+
+	if (intensity > 1) intensity = 1; // leilei - prevent color overflow
+
 
 	VectorScale(f->color, f->drawIntensity * intensity, color);
 
@@ -422,6 +485,9 @@ void RB_RenderFlares (void) {
 	if ( !r_flares->integer ) {
 		return;
 	}
+
+	if ( (backEnd.refdef.rdflags & RDF_NOWORLDMODEL)) 	return;		// leilei - don't draw flares in the UI. this prevents
+	// a very very very very nasty error relating to the trace checks
 
 	if(r_flareCoeff->modified)
 	{

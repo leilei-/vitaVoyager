@@ -72,6 +72,7 @@ void ( APIENTRY * qglViewport )(GLint x, GLint y, GLsizei width, GLsizei height)
 void ( APIENTRY * qglDeleteTextures )(GLsizei n, const GLuint *textures);
 void ( APIENTRY * qglClearStencil )(GLint s);
 void ( APIENTRY * qglColor4f )(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+void ( APIENTRY * qglVertex2f )(GLfloat x, GLfloat y);
 void ( APIENTRY * qglScissor )(GLint x, GLint y, GLsizei width, GLsizei height);
 void ( APIENTRY * qglEnableClientState )(GLenum array);
 void ( APIENTRY * qglDisableClientState )(GLenum array);
@@ -82,6 +83,8 @@ void ( APIENTRY * qglDepthFunc )(GLenum func);
 void ( APIENTRY * qglTexEnvi )(GLenum target, GLenum pname, GLint param);
 void ( APIENTRY * qglAlphaFunc )(GLenum func,  GLclampf ref);
 void ( APIENTRY * qglClearDepth )(GLdouble depth);
+void ( APIENTRY * qglBegin )(GLenum mode);
+void ( APIENTRY * qglEnd )(void);
 void ( APIENTRY * qglFinish )(void);
 void ( APIENTRY * qglGenTextures )(GLsizei n,GLuint * textures);
 void ( APIENTRY * qglPolygonOffset )(GLfloat factor, GLfloat units);
@@ -798,6 +801,29 @@ static void update_variables(bool startup)
 			else
 				Cvar_SetValue("cg_drawFPS", 1);
 		}
+
+		var.key = "vitavoyager_overbrights";
+		var.value = NULL;
+
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			if (strcmp(var.value, "disabled") == 0)
+				Cvar_SetValue("r_overbrightBits", 0);
+			else
+				Cvar_SetValue("r_overbrightBits", 1);
+		}
+
+		var.key = "vitavoyager_wide";
+		var.value = NULL;
+
+		if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+		{
+			if (strcmp(var.value, "disabled") == 0)
+				Cvar_SetValue("r_widescreen", 0);
+			else
+				Cvar_SetValue("r_widescreen", 1);
+		}
+		
 		
 		var.key = "vitavoyager_pickups";
 		var.value = NULL;
