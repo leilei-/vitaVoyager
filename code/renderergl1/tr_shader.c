@@ -3152,6 +3152,24 @@ static void CreateInternalShaders( void ) {
 	Q_strncpyz( shader.name, "<stencil shadow>", sizeof( shader.name ) );
 	shader.sort = SS_STENCIL_SHADOW;
 	tr.shadowShader = FinishShader();
+
+}
+
+static void CreateOBShader (void)
+{
+
+	// leilei - make overbright shader (portability hack)
+	InitShader( "<overbrights>", LIGHTMAP_NONE );
+	stages[0].bundle[0].image[0] = tr.whiteImage;
+	stages[0].active = qtrue;
+	shader.cullType = CT_TWO_SIDED;
+	stages[0].stateBits = GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ONE ;
+	stages[0].constantColor[0] = 255;
+	stages[0].constantColor[1] = 255;
+	stages[0].constantColor[2] = 255;
+	stages[0].rgbGen = CGEN_CONST;
+	//shader.sort = SS_NEAREST;
+	tr.overbrightShader = FinishShader();
 }
 
 static void CreateExternalShaders( void ) {
@@ -3189,4 +3207,6 @@ void R_InitShaders( void ) {
 	ScanAndLoadShaderFiles();
 
 	CreateExternalShaders();
+
+	CreateOBShader();
 }
