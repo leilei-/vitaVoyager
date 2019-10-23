@@ -890,6 +890,8 @@ void RB_CalcFogTexCoords( float *st ) {
 
 /*
 ** RB_CalcEnvironmentTexCoords
+	leilei - stvoy seemed to drop an 0.5 and changed some axis around leading 
+	to texture corners to cross at the center
 */
 void RB_CalcEnvironmentTexCoords( float *st ) 
 {
@@ -913,11 +915,11 @@ void RB_CalcEnvironmentTexCoords( float *st )
 			reflected[1] = normal[1]*2*d - viewer[1];
 			reflected[2] = normal[2]*2*d - viewer[2];
 	
-			st[0] = 0.5 + reflected[1] * 0.5;
-			st[1] = 0.5 - reflected[2] * 0.5;
+			st[0] = reflected[0] * 0.5;
+			st[1] = reflected[1] * 0.5;
 		}
 	}
-	else	// World
+	else	// World, Entities
 	{
 		for (i = 0 ; i < tess.numVertexes ; i++, v += 4, normal += 4, st += 2 ) 
 		{
@@ -930,11 +932,12 @@ void RB_CalcEnvironmentTexCoords( float *st )
 			reflected[1] = normal[1]*2*d - viewer[1];
 			reflected[2] = normal[2]*2*d - viewer[2];
 	
-			st[0] = 0.5 + reflected[1] * 0.5;
-			st[1] = 0.5 - reflected[2] * 0.5;
+			st[0] = reflected[0] * 0.5;
+			st[1] = reflected[1] * 0.5;
 		}
 	}
 }
+
 
 
 /*
@@ -1055,14 +1058,14 @@ void RB_CalcSpecularAlpha( unsigned char *alphas ) {
 	float		l, d;
 	int			b;
 	vec3_t		lightDir;
+	int 		ismodel = 0;
 	int			numVertexes;
 
 	// leilei - Try to approximate stvoy's specular
-	vec3_t lightOrg;
-	if (backEnd.currentEntity->e.renderfx & RF_FIRST_PERSON)
+	if ( backEnd.currentEntity != &tr.worldEntity )
 	{
-		VectorCopy(backEnd.currentEntity->lightDir, lightOrg);
-		VectorNormalizeFast( lightOrg );
+		VectorCopy(backEnd.currentEntity->lightDir, lightDir);	
+		ismodel = 1;
 	}
 
 	v = tess.xyz[0];
@@ -1074,13 +1077,25 @@ void RB_CalcSpecularAlpha( unsigned char *alphas ) {
 	for (i = 0 ; i < numVertexes ; i++, v += 4, normal += 4, alphas += 4) {
 		float ilength;
 
-		VectorSubtract( lightOrg, v, lightDir );
-//		ilength = Q_rsqrt( DotProduct( lightDir, lightDir ) );
-		VectorNormalizeFast( lightDir );
+		if (ismodel) // entities
+		{
+			ilength = Q_rsqrt( DotProduct( lightDir, lightDir ) );
+	
+			// calculate the specular color
+			d = DotProduct (normal, lightDir);
+			d *= ilength;
 
-		// calculate the specular color
-		d = DotProduct (normal, lightDir);
-//		d *= ilength;
+		}
+		else	// world 
+		{
+			VectorSubtract( lightOrigin, v, lightDir );
+	
+			VectorNormalizeFast( lightDir );
+	
+			// calculate the specular color
+			d = DotProduct (normal, lightDir);
+		}
+
 
 		// we don't optimize for the d < 0 case since this tends to
 		// cause visual artifacts such as faceted "snapping"
